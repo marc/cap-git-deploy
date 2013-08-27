@@ -24,7 +24,7 @@ namespace :deploy do
     branch = fetch :branch, 'master'
     if branch != 'master'
       # This is to make sure we are on the correct branch
-      run "cd #{current_path} && git checkout -b #{branch} --track origin/#{branch}"
+      run "cd #{current_path} && git checkout #{branch}"
     end
   end
 
