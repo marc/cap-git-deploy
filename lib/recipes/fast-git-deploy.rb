@@ -55,16 +55,29 @@ namespace :deploy do
 
   desc "Update the deployed code"
   task :update_code, :except => { :no_release => true } do
-    # If we are rolling back branch, then this is a commit
     if rolling_back
-      branch_name = branch
+      # If we are rolling back branch, then this is a commit
+      run "cd #{current_path} && git reset --hard #{branch}"
     else
-      branch_name = "origin/#{fetch :branch, 'master'}"
+      current_branch = nil
+      run "cd #{current_path} && git status | head -1" do |channel, stream, data|
+        if data.match(/^# On branch (.*?)$/)
+          current_branch = $1.scan(/[[:print:]]/).join
+        end
+      end
+      raise "Could not detect the current branch in #{current_path}." unless current_branch
+      # Reset to origin/<current_branch> instead of the local <current_branch> in case someone committed changes locally
+      # -- though this should not happen on a server that is only getting deployed to.
+      run "cd #{current_path} && git reset --hard origin/#{current_branch}"
+      # Fetch repo updates
+      run "cd #{current_path} && git fetch origin"
+      # Note: git checkout does not pull the latest changes when staying on the same branch. (Sample output below.)
+      # ** [out :: localhost] Already on 'develop'
+      # ** [out :: localhost] Your branch is behind 'origin/develop' by 8 commits, and can be fast-forwarded.
+      # git pull in case it is needed.
+      run "cd #{current_path} && git checkout #{branch}"
+      run "cd #{current_path} && git pull origin #{branch}"
     end
-
-    run "cd #{current_path} && git fetch" unless rolling_back
-    run "cd #{current_path} && git reset --hard #{branch_name}"
-
     finalize_update
   end
 
